@@ -153,7 +153,9 @@ def generate_rects(num, max_length = 5):
 # r[0].place(5, 5)
 # print(r)
 
-g = Grid(10, 10)
-r = Rect((0,0), 10, 5)
-g.place_rect(r, (0, 0))
-print(g)
+# g = Grid(10, 10)
+# r = Rect((0,0), 10, 5)
+# g.place_rect(r, (0, 0))
+# print(g)
+
+
