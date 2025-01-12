@@ -5,65 +5,44 @@ Return a random possible configuration of the rectangles in the grid.
 If no such configuration exists, return None.
 '''
 import random
-
+import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 
 class Cell:
     def __init__(self, top_left:tuple, width: int, height: int, parent = None):
         '''
-        A cell is represented by its top left corner and its dimensions.
-        A cell can contain child cells
+        A cell is represented by its top left corner, width and height.
+        
+        Cells with width or height == 0 will return None
         '''
+        if width <= 0 or height <= 0:
+            return None
+        
         self.top_left: tuple = top_left # Top left corner
-        self.dimensions: tuple = (width, height)
-        self.parent: Cell = parent
-        self.children: list[Cell] = []
+        self.width = width
+        self.height = height
+        self.min_x = top_left[0]
+        self.min_y = top_left[1]
+        self.max_x = top_left[0] + self.width
+        self.max_y = top_left[1] + self.height
         
     def area(self):
         '''
         Returns the area of the cell
         '''
-        return self.dimensions[0] * self.dimensions[1]
-    
-    def corners(self):
-        '''
-        Returns a list of coordinates that represent the 4 corners of the cell
-        '''
-        x1 = self.top_left[0]
-        x2 = self.top_left[0] + self.dimensions[0]
-        y1 = self.top_left[1]
-        y2 = self.top_left[1] + self.dimensions[1]
-        
-        return [(x1, y1), (x1, y2), (x2, y1), (x2, y2)]
+        return self.width * self.height
     
     def contains_coord(self, coord: tuple):
         '''
         Return True if the cell contains this coord. False otherwise.
         '''
         x = coord[0]
-        x_check = self.top_left[0] <= x <= (self.top_left[0] + self.dimensions[0])
+        x_check = self.top_left[0] <= x <= (self.top_left[0] + self.width)
         y = coord[1]
-        y_check = self.top_left[1] <= y <= (self.top_left[1] + self.dimensions[1])
+        y_check = self.top_left[1] <= y <= (self.top_left[1] + self.height)
         
         return x_check and y_check
     
-    def get_cell_by_coord(self, coord: tuple):
-        '''
-        Given a coord, Iterates over the cell and its children cells and returns the most bottom cell that contains it.
-        Returns None if the coord is not in the cell or its children.
-        '''
-        if self.contains_coord(coord):
-            # If the cell doesnt have child cells, the coord belongs to this cell
-            if not self.children:
-                return self
-            
-            # If the cell has child cells, iterate over them and find the cell that contains the coord
-            for c in self.children:
-                res = c.get_cell_by_coord(coord)
-                if res:
-                    return res
-                
-        return None
-        
     def can_contain(self, c):
         '''
         Returns true if this cell is able to contain the entirety of the input cell.
@@ -72,17 +51,9 @@ class Cell:
         br = c.corners()[3] # Bottom right
         return self.contains_coord(tl) and self.contains_coord(br) # If the top left and bottom right corners are contained in the cell, then the entire cell is also contained
         
-    def insert(self, c):
-        '''
-        Inserts the input cell as a child of this cell and updates the parent of the child cell.
-        '''
-        self.children.append(c)
-        c.parent = self
-        # Add division into more child cells here
-        
     def __str__(self):
         s = f'{self.__class__.__name__}: {self.top_left}\n'
-        s += f'Size - {self.dimensions}\n'
+        s += f'Size - {self.width}, {self.height}\n'
         return s
         
     def __repr__(self):
@@ -105,7 +76,7 @@ class Rect(Cell):
         '''
         Flips the dimensions of the rectangle
         '''
-        self.dimensions = self.dimensions[::-1]
+        self.width, self.height = self.height, self.width
         
     def place(self, x, y):
         '''
@@ -118,17 +89,38 @@ class Rect(Cell):
     
 class Grid:
     def __init__(self, n: int, m: int):
-        self.root = Cell((0, 0), n, m)
+        self.cells: list[Cell] = [Cell((0, 0), n, m)] # Create the main cell
+       
+    def subdivide(self, c: Cell, r: Rect):
+        # Subdivides a cell based on the corners of a rectangle
+        top = Cell(c.top_left, c.width, r.min_y - c.min_y)
+        left = Cell((c.min_x, r.min_y), r.min_x - c.min_x, r.height)
+        right = Cell((r.max_x, r.min_x), c.max_x - r.max_x, r.height)
+        bottom = Cell((c.min_x, r.max_y), c.width, c.max_y - r.max_y)
         
+        # Remove the partitioned cell from the list
+        self.cells.remove(c)
+        
+        # Add the new cells if they are valid
+        for new_cell in [top, left, right, bottom]:
+            if new_cell:
+                self.cells.append(new_cell)
+    
     def place_rect(self, r: Rect, coord: tuple):
-        c = self.root.get_cell_by_coord(coord) # Find the bottom most cell that contains the desired coord
-        if not c.can_contain(r):
-            r.flip()
-            if not c.can_contain(r):
-                return False
         
-        r.top_left = coord
-        c.insert(r)
+        for c in self.cells:
+            # Iterate over all cells in the grid
+            
+            if c.can_contain(r):
+                # If the rectangle fits in the cell, partition the cell into 4 cells that don't include the rectangle.
+                
+                r.place(c.top_left) # Place the rectangle at the corner of cell
+                self.subdivide(c, r) # Subdivide the cell
+                
+                return True
+            
+        # Return False since the rect couldn't be placed
+        return False
         
     def __repr__(self):
         return self.root.__repr__()
@@ -158,4 +150,15 @@ def generate_rects(num, max_length = 5):
 # g.place_rect(r, (0, 0))
 # print(g)
 
+#define Matplotlib figure and axis
+fig, ax = plt.subplots()
+ax.plot(20, 20)
 
+#add rectangle to plot
+ax.add_patch(Rectangle((1, 1), 8, 8,))
+
+# Enable grid lines
+ax.grid()
+
+#display plot
+plt.show()
