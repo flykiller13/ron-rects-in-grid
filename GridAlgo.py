@@ -9,14 +9,12 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 
 class Cell:
-    def __init__(self, top_left:tuple, width: int, height: int, parent = None):
+    def __init__(self, top_left:tuple, width: int, height: int):
         '''
         A cell is represented by its top left corner, width and height.
         
         Cells with width or height == 0 will return None
         '''
-        if width <= 0 or height <= 0:
-            return None
         
         self.top_left: tuple = top_left # Top left corner
         self.width = width
@@ -32,24 +30,13 @@ class Cell:
         '''
         return self.width * self.height
     
-    def contains_coord(self, coord: tuple):
-        '''
-        Return True if the cell contains this coord. False otherwise.
-        '''
-        x = coord[0]
-        x_check = self.top_left[0] <= x <= (self.top_left[0] + self.width)
-        y = coord[1]
-        y_check = self.top_left[1] <= y <= (self.top_left[1] + self.height)
-        
-        return x_check and y_check
-    
     def can_contain(self, c):
         '''
         Returns true if this cell is able to contain the entirety of the input cell.
         '''
-        tl = self.corners()[0] # Top left
-        br = c.corners()[3] # Bottom right
-        return self.contains_coord(tl) and self.contains_coord(br) # If the top left and bottom right corners are contained in the cell, then the entire cell is also contained
+        w_check = self.width >= c.width
+        h_check = self.height >= c.height
+        return w_check and h_check
         
     def __str__(self):
         s = f'{self.__class__.__name__}: {self.top_left}\n'
@@ -65,12 +52,12 @@ class Cell:
         return s
 
 class Rect(Cell):
-    def __init__(self, top_left, width, height, parent=None):
+    def __init__(self,  width, height, top_left = (-1, -1)):
         '''
         A Rect is a Cell that can't have child Cells.
         The Rect can be moved in its parent Cell.
         '''
-        super().__init__(top_left, width, height, parent)
+        super().__init__(top_left, width, height)
         
     def flip(self):
         '''
@@ -78,18 +65,21 @@ class Rect(Cell):
         '''
         self.width, self.height = self.height, self.width
         
-    def place(self, x, y):
+    def place(self, coord: tuple):
         '''
         Places the Rect at the given coordinates
         '''
-        self.top_left = (x, y)
+        self.top_left = (coord[0], coord[1])
         
     def __repr__(self):
         return super().__repr__()
     
 class Grid:
     def __init__(self, n: int, m: int):
+        self.n = n
+        self.m = m
         self.cells: list[Cell] = [Cell((0, 0), n, m)] # Create the main cell
+        self.rects: list[Rect] = []
        
     def subdivide(self, c: Cell, r: Rect):
         # Subdivides a cell based on the corners of a rectangle
@@ -103,10 +93,10 @@ class Grid:
         
         # Add the new cells if they are valid
         for new_cell in [top, left, right, bottom]:
-            if new_cell:
+            if new_cell.area() > 0:
                 self.cells.append(new_cell)
     
-    def place_rect(self, r: Rect, coord: tuple):
+    def place_rect(self, r: Rect):
         
         for c in self.cells:
             # Iterate over all cells in the grid
@@ -115,6 +105,7 @@ class Grid:
                 # If the rectangle fits in the cell, partition the cell into 4 cells that don't include the rectangle.
                 
                 r.place(c.top_left) # Place the rectangle at the corner of cell
+                self.rects.append(r)
                 self.subdivide(c, r) # Subdivide the cell
                 
                 return True
@@ -124,6 +115,21 @@ class Grid:
         
     def __repr__(self):
         return self.root.__repr__()
+    
+    def plot(self):
+        #define Matplotlib figure and axis
+        fig, ax = plt.subplots()
+        ax.plot(self.n + 1,self.m + 1)
+
+        #add rectangles to plot
+        for r in self.rects:
+            ax.add_patch(Rectangle(r.top_left, r.width, r.height,))
+
+        # Enable grid lines
+        ax.grid()
+
+        #display plot
+        plt.show()
         
             
     
@@ -139,26 +145,16 @@ def generate_rects(num, max_length = 5):
         
     return rects
 
-# r = generate_rects(5)
-# print(r)
-# r[0].flip()
-# r[0].place(5, 5)
-# print(r)
+def get_random_config(g: Grid, rects: list[Rect]):
+    for r in rects:
+        if not g.place_rect(r):
+            return False
+        
+    g.plot()
+    return True
 
-# g = Grid(10, 10)
-# r = Rect((0,0), 10, 5)
-# g.place_rect(r, (0, 0))
-# print(g)
+g = Grid(10, 10)
+rects = [Rect( 5, 5), Rect(2, 3)]
+print(get_random_config(g, rects))
 
-#define Matplotlib figure and axis
-fig, ax = plt.subplots()
-ax.plot(20, 20)
 
-#add rectangle to plot
-ax.add_patch(Rectangle((1, 1), 8, 8,))
-
-# Enable grid lines
-ax.grid()
-
-#display plot
-plt.show()
